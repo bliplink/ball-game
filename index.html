@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velvet Break | 全能台球训练场</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles/main.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <p class="eyebrow">Velvet Break</p>
+      <h1>全能台球训练场</h1>
+      <p class="intro">
+        现在支持同屏双人、人机对决、单人技巧训练、单人实战训练、上下左右旋，以及局域网房间联机。拖动白球后方蓄力，配合旋转与路径预测来完成你的下一杆。
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="table-card">
+        <div class="table-stage">
+          <canvas id="gameCanvas" width="1280" height="720" aria-label="台球桌游戏画布"></canvas>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>模式选择</h2>
+          <div class="field-stack">
+            <label class="field">
+              <span>当前模式</span>
+              <select id="modeSelect">
+                <option value="local-pvp">同屏双人对战</option>
+                <option value="ai-duel">人机对决</option>
+                <option value="solo-skill">单人技巧训练场</option>
+                <option value="solo-battle">单人实战训练场</option>
+                <option value="online">联机对战</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>AI 难度</span>
+              <select id="aiDifficultySelect">
+                <option value="easy">简单</option>
+                <option value="normal" selected>标准</option>
+                <option value="hard">进阶</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>技巧训练预设</span>
+              <select id="drillSelect">
+                <option value="straight_stop">直线停球</option>
+                <option value="thin_cut">薄球切袋</option>
+                <option value="bank_shot">一库反弹</option>
+                <option value="draw_back">低杆回拉</option>
+                <option value="follow_run">高杆跟进</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel score-panel">
+          <h2>本局信息</h2>
+          <div class="score-grid">
+            <div class="stat">
+              <span class="stat-label">当前玩家</span>
+              <strong id="currentPlayerValue">玩家 1</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">总杆数</span>
+              <strong id="shotsValue">0</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">球台状态</span>
+              <strong id="tableValue">开球阶段</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">最快球速</span>
+              <strong id="speedValue">0</strong>
+            </div>
+          </div>
+          <div class="meter">
+            <div class="meter-row">
+              <span>击球力度</span>
+              <span id="powerValue">0%</span>
+            </div>
+            <div class="meter-track">
+              <div id="powerFill" class="meter-fill"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>旋转控制</h2>
+          <div class="spin-pad">
+            <button class="spin-button" id="spinUpButton" data-spin="up" type="button">上旋</button>
+            <button class="spin-button" id="spinLeftButton" data-spin="left" type="button">左旋</button>
+            <button class="spin-button active" id="spinNeutralButton" data-spin="neutral" type="button">无旋</button>
+            <button class="spin-button" id="spinRightButton" data-spin="right" type="button">右旋</button>
+            <button class="spin-button" id="spinDownButton" data-spin="down" type="button">下旋</button>
+          </div>
+          <p id="spinHintValue" class="target-hint">上旋适合跟进，下旋适合回拉，左右旋会让白球在行进与碰库时产生轻微侧偏。</p>
+        </section>
+
+        <section class="panel target-panel">
+          <h2>本杆目标</h2>
+          <div class="target-grid">
+            <div class="target-stat">
+              <span class="stat-label">合法首碰</span>
+              <strong id="targetCandidatesValue">1 / 2 / 3 / 4 / 5 / 6 / 7 / 9 / 10 / 11 / 12 / 13 / 14 / 15</strong>
+            </div>
+            <div class="target-stat">
+              <span class="stat-label">当前推荐</span>
+              <strong id="targetRecommendationValue">建议先碰 1 号球</strong>
+            </div>
+          </div>
+          <p id="targetHintValue" class="target-hint">瞄准合法首碰球时，会显示白球与目标球的预测分离路线。</p>
+        </section>
+
+        <section class="panel">
+          <h2>玩家信息</h2>
+          <div class="player-stack">
+            <article id="player1Card" class="player-card active">
+              <div class="player-header">
+                <strong id="player1Title" class="player-title">玩家 1</strong>
+                <span id="player1Badge" class="player-badge">开球方</span>
+              </div>
+              <div class="player-meta">
+                <span>球组</span>
+                <strong id="player1Group">待定</strong>
+                <span>目标</span>
+                <strong id="player1Target">开放球台</strong>
+                <span>犯规</span>
+                <strong id="player1Fouls">0</strong>
+              </div>
+            </article>
+
+            <article id="player2Card" class="player-card">
+              <div class="player-header">
+                <strong id="player2Title" class="player-title">玩家 2</strong>
+                <span id="player2Badge" class="player-badge">等待回合</span>
+              </div>
+              <div class="player-meta">
+                <span>球组</span>
+                <strong id="player2Group">待定</strong>
+                <span>目标</span>
+                <strong id="player2Target">开放球台</strong>
+                <span>犯规</span>
+                <strong id="player2Fouls">0</strong>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>联机对战</h2>
+          <div class="field-stack">
+            <label class="field">
+              <span>服务器地址</span>
+              <input id="serverUrlInput" type="text" value="" placeholder="默认自动跟随当前站点" />
+            </label>
+            <label class="field">
+              <span>房间号</span>
+              <input id="roomCodeInput" type="text" placeholder="输入房间号加入" />
+            </label>
+          </div>
+          <div class="button-row button-row--stacked">
+            <button id="connectServerButton" type="button">连接服务器</button>
+            <button id="createRoomButton" type="button">创建房间</button>
+            <button id="joinRoomButton" type="button">加入房间</button>
+          </div>
+          <p id="onlineStatusValue" class="target-hint">先运行本地房间服务，再连接服务器创建或加入房间。</p>
+        </section>
+
+        <section class="panel">
+          <h2>当前状态</h2>
+          <p id="statusText" class="status-text">拖住白球后方蓄力，松手出杆。</p>
+        </section>
+
+        <section class="panel">
+          <h2>规则与操作</h2>
+          <ul class="tips">
+            <li>拖动白球后方蓄力，松手出杆。</li>
+            <li>同屏双人与人机模式按美式 8 球规则进行。</li>
+            <li>单人技巧训练场提供固定练习球型，适合练旋转与走位。</li>
+            <li>单人实战训练场要求在限定杆数内清掉彩球并最终收掉 8 号球。</li>
+            <li>自由球阶段先点击合法位置摆放白球，再继续瞄准。</li>
+            <li><kbd>R</kbd> 重新开始当前模式，<kbd>N</kbd> 下一局或下一个训练轮次。</li>
+          </ul>
+          <div class="button-row">
+            <button id="restartRackButton" type="button">重新开始当前模式</button>
+            <button id="newRoundButton" type="button">下一局 / 下一轮</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="./src/main.js" defer></script>
+</body>
+</html>

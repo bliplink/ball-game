@@ -1,0 +1,12 @@
+{
+  "name": "velvet-break",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Velvet Break billiards training and online room server",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
