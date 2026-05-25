@@ -59,6 +59,10 @@
     return `${protocol}//${window.location.host}${normalizedBasePath}/ws`;
   })();
 
+  const PERSISTENCE_KEY = "velvet-break-progress-v1";
+  const AUTO_SAVE_INTERVAL_MS = 1500;
+  let lastPersistAt = 0;
+
   elements.serverUrlInput.value = defaultOnlineServerUrl;
 
   const MODE_CONFIG = {
@@ -248,6 +252,98 @@
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function saveProgress(force) {
+    const now = Date.now();
+    if (!force && now - lastPersistAt < AUTO_SAVE_INTERVAL_MS) {
+      return;
+    }
+
+    const payload = {
+      version: 1,
+      savedAt: now,
+      mode: state.mode,
+      statusText: elements.statusText.textContent,
+      serverUrl: elements.serverUrlInput.value.trim() || defaultOnlineServerUrl,
+      roomCode: elements.roomCodeInput.value.trim().toUpperCase(),
+      onlineStatus: state.online.status,
+      snapshot: state.mode === "online" ? null : getSnapshot(),
+    };
+
+    try {
+      window.localStorage.setItem(PERSISTENCE_KEY, JSON.stringify(payload));
+      lastPersistAt = now;
+    } catch (error) {
+      // Ignore storage failures so gameplay never gets blocked by quota or privacy settings.
+    }
+  }
+
+  function restoreProgress() {
+    let raw = null;
+    try {
+      raw = window.localStorage.getItem(PERSISTENCE_KEY);
+    } catch (error) {
+      return false;
+    }
+
+    if (!raw) {
+      return false;
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch (error) {
+      return false;
+    }
+
+    elements.serverUrlInput.value = payload.serverUrl || defaultOnlineServerUrl;
+    elements.roomCodeInput.value = payload.roomCode || "";
+    state.online.serverUrl = elements.serverUrlInput.value.trim() || defaultOnlineServerUrl;
+    state.online.roomCode = "";
+    state.online.connected = false;
+    state.online.isHost = false;
+    state.online.playerIndex = 0;
+    state.online.clientId = "";
+    state.online.socket = null;
+
+    if (payload.snapshot && payload.snapshot.mode && payload.snapshot.mode !== "online") {
+      state.breaker = typeof payload.snapshot.breaker === "number" ? payload.snapshot.breaker : 0;
+      switchMode(payload.snapshot.mode, false);
+      resetSession(false);
+      applySnapshot(payload.snapshot);
+      setStatus(payload.statusText || "已恢复上次进度。");
+      updateDashboard();
+      return true;
+    }
+
+    if (payload.mode === "online") {
+      switchMode("online", false);
+      resetSession(false);
+      setOnlineStatus(payload.onlineStatus || "已恢复上次联机设置，请重新连接服务器。");
+      setStatus("已恢复上次联机设置，请重新连接服务器后继续。");
+      updateDashboard();
+      return true;
+    }
+
+    return false;
+  }
+
+  function bindPersistenceEvents() {
+    window.addEventListener("beforeunload", function () {
+      saveProgress(true);
+    });
+
+    window.addEventListener("pagehide", function () {
+      saveProgress(true);
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") {
+        saveProgress(true);
+      }
+    });
   }
 
   function currentSpin() {
@@ -2558,6 +2654,7 @@
     state.aimAssist = computeAimAssist();
     updateDashboard();
     maybeBroadcastOnlineState(false);
+    saveProgress(false);
     draw();
     requestAnimationFrame(frame);
   }
@@ -2731,7 +2828,10 @@
   }
 
   bindEvents();
+  bindPersistenceEvents();
   setSpin("neutral");
-  switchMode("local-pvp", true);
+  if (!restoreProgress()) {
+    switchMode("local-pvp", true);
+  }
   requestAnimationFrame(frame);
 })();
