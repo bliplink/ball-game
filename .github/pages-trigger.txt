@@ -1,1 +1,1 @@
-Trigger GitHub Pages deployment.
+Trigger GitHub Pages deployment after enabling Pages.
